@@ -9,7 +9,7 @@ workflows:
       groups:
         - google_play # <-- (Includes GCLOUD_SERVICE_ACCOUNT_CREDENTIALS)
       vars:
-        PACKAGE_NAME: "io.codemagic.flutteryaml" # <-- Put your package name here
+        PACKAGE_NAME: "com.delivery.system" # <-- Put your package name here
         GOOGLE_PLAY_TRACK: "alpha"
       flutter: stable
     scripts:
