@@ -2,4 +2,5 @@ workflows:
   hello-world:
     name: Build
     scripts:
-        - echo "Hello World!"
+  - name: Build for iOS         # Name of the section
+    script: flutter build ios   # The script(s) to be run in that section
