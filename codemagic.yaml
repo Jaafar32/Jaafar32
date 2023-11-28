@@ -1,16 +1,12 @@
 workflows:
-  build_ipa:
-    name: Build IPA
+  build:
+    name: Build
     environment:
-      flutter: dev
-    scripts:
-      - name: Install dependencies
-        script: flutter pub get
-      - name: Build IPA
-        script: flutter build ios --release --no-codesign
-    artifacts:
-      - build/ios/iphoneos/Runner.app
-    publishing:
-      email:
-        recipients:
-          - jaafarnhh@gmail.com
+      flutter: stable
+
+jobs:
+  build:
+    name: Build APK
+    script:
+      - flutter packages get
+      - flutter build apk --release --target-platform android-arm,android-arm64
