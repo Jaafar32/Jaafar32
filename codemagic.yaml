@@ -1,36 +1,37 @@
-name: iOS Codemagic Workflow
+workflows:
+  version: 2
+  build:
+    name: Build
+    on:
+      push:
+        branches:
+          - main  # Update this to your main branch name
+    jobs:
+      - build_ios
 
-instance_type: mac_mini_m1
+jobs:
+  build_ios:
+    name: Build iOS
+    environment:
+      flutter: stable
+    steps:
+      - name: Checkout code
+        script:
+          - git clone https://github.com/$CI_REPOSITORY_OWNER/$CI_REPOSITORY_NAME.git .
+          - git checkout $CI_COMMIT_REF_NAME
 
-environment:
-  groups:
-  - ios
+      - name: Install dependencies
+        script:
+          - flutter pub get
 
-vars:
-  XCODE_WORKSPACE: "ios/App.xcworkspace"
-  XCODE_SCHEME: "App"
-  APP_STORE_CONNECT_ISSUER_ID: <app_store_connect_issuer_id>
-  APP_STORE_CONNECT_KEY_IDENTIFIER: <app_store_connect_key_identifier>
-  APP_STORE_CONNECT_PRIVATE_KEY: <app_store_connect_private_key>
+      - name: Build iOS
+        script:
+          - flutter build ios --release --no-codesign
 
-integrations:
-  app_store_connect: codemagic
+      - name: Archive iOS
+        script:
+          - xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -configuration Release -archivePath build/Runner.xcarchive archive
 
-scripts:
-  - name: Install cocoapods
-    script: |
-      pod install
-
-  - name: Build IPA
-    script: |
-      xcodebuild -workspace "$XCODE_WORKSPACE" -scheme "$XCODE_SCHEME" -destination "generic/Platform" -sdk "macosx11.3" -configuration "Release" -archive
-
-artifacts:
-  - build/ios/ipa/*.ipa
-publishing:
-  app_store_connect:
-    api_key: $APP_STORE_CONNECT_PRIVATE_KEY
-    key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
-    issuer_id: $APP_STORE_CONNECT_ISSUER_ID
-    app_id: <app_store_connect_app_id>
-    automatic_release: true
+      - name: Export IPA
+        script:
+          - xcodebuild -exportArchive -archivePath build/Runner.xcarchive -exportOptionsPlist export_options.plist -exportPath build
