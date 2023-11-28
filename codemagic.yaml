@@ -1,29 +1,36 @@
-workflows:
-  build:
-   name: Android APK Build Workflow
+name: iOS Codemagic Workflow
+
 instance_type: mac_mini_m1
-max_build_duration: 120
 
 environment:
   groups:
-  - android
+  - ios
 
 vars:
-  ANDROID_SDK_HOME: /opt/android-sdk-latest
-  BUILD_TOOLS_VERSION: 30.0.3
+  XCODE_WORKSPACE: "ios/App.xcworkspace"
+  XCODE_SCHEME: "App"
+  APP_STORE_CONNECT_ISSUER_ID: <app_store_connect_issuer_id>
+  APP_STORE_CONNECT_KEY_IDENTIFIER: <app_store_connect_key_identifier>
+  APP_STORE_CONNECT_PRIVATE_KEY: <app_store_connect_private_key>
+
+integrations:
+  app_store_connect: codemagic
 
 scripts:
-  - name: Install Android SDK
+  - name: Install cocoapods
     script: |
-      curl -o android-sdk.zip https://dl.google.com/android/repository/android-sdk-latest-linux.zip
-      unzip android-sdk.zip
-      export PATH=${ANDROID_SDK_HOME}/platform-tools:${ANDROID_SDK_HOME}/tools:${PATH}
+      pod install
 
-  - name: Clean and Build APK
+  - name: Build IPA
     script: |
-      cd android
-      ./gradlew clean
-      ./gradlew assembleDebug
+      xcodebuild -workspace "$XCODE_WORKSPACE" -scheme "$XCODE_SCHEME" -destination "generic/Platform" -sdk "macosx11.3" -configuration "Release" -archive
 
 artifacts:
-  - build/outputs/apk/debug/app-debug.apk
+  - build/ios/ipa/*.ipa
+publishing:
+  app_store_connect:
+    api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+    key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+    issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+    app_id: <app_store_connect_app_id>
+    automatic_release: true
