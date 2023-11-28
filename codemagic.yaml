@@ -1,45 +1,41 @@
 workflows:
+  build:
+   name: iOS IPA Build Workflow
 
-name: iOS Codemagic Workflow
+on:
+  push:
+    branches: [ main ]
 
-instance_type: mac_mini_m1
+jobs:
+  build:
+    runs-on: mac-mini-m1
 
-environment:
-  groups:
-  - ios
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-vars:
-  XCODE_WORKSPACE: "ios/App.xcworkspace"
-  XCODE_SCHEME: "App"
-  APP_STORE_CONNECT_ISSUER_ID: <app_store_connect_issuer_id>
-  APP_STORE_CONNECT_KEY_IDENTIFIER: <app_store_connect_key_identifier>
-  APP_STORE_CONNECT_PRIVATE_KEY: <app_store_connect_private_key>
-  APP_STORE_CONNECT_APP_ID: <app_store_connect_app_id>
+      - name: Setup Xcode
+        uses: actions/setup-xcode@v3
+        with:
+          xcode-version: 14
 
-integrations:
-  app_store_connect: codemagic
+      - name: Install pods
+        run: |
+          pod install
 
-scripts:
-  - name: Install cocoapods
-    script: |
-      pod install
+      - name: Build IPA
+        run: |
+          xcodebuild -workspace ios/App.xcworkspace -scheme App -destination "generic/Platform" -sdk "macosx11.3" -configuration "Release" -archive
 
-  - name: Build IPA
-    script: |
-      xcodebuild -workspace "$XCODE_WORKSPACE" -scheme "$XCODE_SCHEME" -destination "generic/Platform" -sdk "macosx11.3" -configuration "Release" -archive
+      - name: Upload IPA to App Store Connect
+        uses: apple/upload-to-app-store@v1.1.0
+        with:
+          token: ${{ secrets.FASTLANE_APP_STORE_CONNECT_UPLOAD_TOKEN }}
+          app-id: ${{ secrets.FASTLANE_APP_STORE_CONNECT_APP_ID }}
+          file: build/ios/ipa/*.ipa
 
-artifacts:
-  - build/ios/ipa/*.ipa
-publishing:
-  app_store_connect:
-    api_key: $APP_STORE_CONNECT_PRIVATE_KEY
-    key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
-    issuer_id: $APP_STORE_CONNECT_ISSUER_ID
-    app_id: $APP_STORE_CONNECT_APP_ID
-    automatic_release: true
-
-triggering:
-  events:
-    - push
-    - tag
-    - pull_request
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ios-ipa
+          path: build/ios/ipa/*.ipa
