@@ -1,41 +1,63 @@
 workflows:
-  build:
-   name: iOS IPA Build Workflow
-
-on:
-  push:
-    branches: [ main ]
+  version: 2
+  build_and_deploy:
+    name: Build and Deploy
+    on:
+      push:
+        branches:
+          - main  # Replace with your main branch name
+    jobs:
+      - build_ios_and_deploy:
+          name: Build iOS and Deploy
+          context: iOSBuild
+          filters:
+            branches:
+              only:
+                - main
 
 jobs:
-  build:
-    runs-on: mac-mini-m1
-
+  build_ios_and_deploy:
+    name: Build iOS and Deploy
+    environment:
+      flutter: stable
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        script:
+          - git clone https://github.com/$CI_REPOSITORY_OWNER/$CI_REPOSITORY_NAME.git .
+          - git checkout $CI_COMMIT_REF_NAME
 
-      - name: Setup Xcode
-        uses: actions/setup-xcode@v3
-        with:
-          xcode-version: 14
+      - name: Install dependencies
+        script:
+          - flutter pub get
 
-      - name: Install pods
-        run: |
-          pod install
+      - name: Install CocoaPods
+        script:
+          - cd ios
+          - pod install
+          - cd ..
 
-      - name: Build IPA
-        run: |
-          xcodebuild -workspace ios/App.xcworkspace -scheme App -destination "generic/Platform" -sdk "macosx11.3" -configuration "Release" -archive
+      - name: Build iOS
+        script:
+          - flutter build ios --release --no-codesign
 
-      - name: Upload IPA to App Store Connect
-        uses: apple/upload-to-app-store@v1.1.0
-        with:
-          token: ${{ secrets.FASTLANE_APP_STORE_CONNECT_UPLOAD_TOKEN }}
-          app-id: ${{ secrets.FASTLANE_APP_STORE_CONNECT_APP_ID }}
-          file: build/ios/ipa/*.ipa
+      - name: Archive iOS
+        script:
+          - xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -configuration Release -archivePath build/Runner.xcarchive archive
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: ios-ipa
-          path: build/ios/ipa/*.ipa
+      - name: Export IPA
+        script:
+          - xcodebuild -exportArchive -archivePath build/Runner.xcarchive -exportOptionsPlist export_options.plist -exportPath build
+
+      - name: Deploy to App Store Connect
+        script:
+          - curl -o ac_issuer_id.txt $APP_STORE_CONNECT_ISSUER_ID
+          - curl -o ac_key_identifier.txt $APP_STORE_CONNECT_KEY_IDENTIFIER
+          - curl -o ac_private_key.txt $APP_STORE_CONNECT_PRIVATE_KEY
+          - curl -o ac_app_id.txt $APP_STORE_CONNECT_APP_ID
+          - export APP_STORE_CONNECT_ISSUER_ID=$(cat ac_issuer_id.txt)
+          - export APP_STORE_CONNECT_KEY_IDENTIFIER=$(cat ac_key_identifier.txt)
+          - export APP_STORE_CONNECT_PRIVATE_KEY=$(cat ac_private_key.txt)
+          - export APP_STORE_CONNECT_APP_ID=$(cat ac_app_id.txt)
+          - flutter pub run flutter_native_env_shim/main.dart
+          - flutter pub run flutter_native_env_shim/main.dart app-store-connect
+          - flutter pub run flutter_native_env_shim/main.dart app-store-connect build
