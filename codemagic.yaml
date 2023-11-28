@@ -1,16 +1,6 @@
 workflows:
   build:
-    name: Build
-    environment:
-      flutter: stable
-
-jobs:
-  build:
-    name: Build APK
-    script:
-      - flutter packages get
-      - flutter build apk --release --target-platform android-arm,android-arm64
-      name: Android APK Build Workflow
+   name: Android APK Build Workflow
 instance_type: mac_mini_m1
 max_build_duration: 120
 
@@ -37,4 +27,3 @@ scripts:
 
 artifacts:
   - build/outputs/apk/debug/app-debug.apk
-
